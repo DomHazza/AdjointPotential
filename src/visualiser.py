@@ -80,10 +80,9 @@ def show_flow(mesh, facet_tags, u_n, phi, rho):
         cells = colliding_cells.links(i)
         if len(cells) > 0:
             try:
-                #TODO
                 vel = u_n.eval(points_eval[i], cells[:1])
-                U.flat[i] = transformed_velocity_complex.real
-                V.flat[i] = transformed_velocity_complex.imag
+                U.flat[i] = vel[0]
+                V.flat[i] = vel[1]
             except:
                 # Point might be outside the domain
                 U.flat[i] = 0
