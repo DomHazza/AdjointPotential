@@ -9,7 +9,7 @@ import ufl
 
 def conformal_map(x, y):
     # sigma - a = (x - a_real) + i(y - a_imag)
-    a_real=0.0
+    a_real=-0.0
     a_imag=0.0
     sigma_minus_a_real = x - a_real
     sigma_minus_a_imag = y - a_imag
@@ -30,7 +30,9 @@ def conformal_map(x, y):
 
 
 mesh, cell_tags, facet_tags = src.mesher.build_sigma_mesh()
-velocity, phi_sol, rho = src.solver.potential_compressible(mesh, facet_tags, M_inf=0.7, gamma=1.4)
+velocity, phi, rho = src.solver.potential_compressible(mesh, facet_tags, M_inf=0.7, gamma=1.4)
+
+fig = src.visualiser.show_flow(mesh, facet_tags, velocity, phi, rho)
 
 # Build the new mesh
 coords = mesh.geometry.x
@@ -39,6 +41,5 @@ new_coords = np.column_stack([z_real, z_imag])
 mesh.geometry.x[:, :2] = new_coords
 
 # fig = src.visualiser.show_mesh(mesh, facet_tags)
-fig = src.visualiser.show_flow(mesh, velocity, phi_sol)
-fig = src.visualiser.show_flow(mesh, velocity, rho)
+fig = src.visualiser.show_flow(mesh, facet_tags, velocity, phi, rho)
 plt.show()

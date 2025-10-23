@@ -6,46 +6,6 @@ import ufl
 
 
 
-def potential(mesh, facet_tags):
-    # Create scalar function space for potential
-    V = fem.functionspace(mesh, ("CG", 1))
-    phi = ufl.TrialFunction(V)
-    v = ufl.TestFunction(V)
-
-    # Set boundary condition for potential (uniform flow in x-direction)
-    phi_inf_expr = fem.Expression(
-        ufl.SpatialCoordinate(mesh)[0],
-        V.element.interpolation_points()
-    )
-    phi_inf = fem.Function(V)
-    phi_inf.interpolate(phi_inf_expr)
-    boundary = fem.locate_dofs_topological(V, 1, facet_tags.find(src.mesher.MARKERS['border']))
-    bc_outer = fem.dirichletbc(phi_inf, boundary)
-
-    # Define variational problem (Laplace equation)
-    a = ufl.inner(ufl.grad(phi), ufl.grad(v)) * ufl.dx
-    L = fem.Constant(mesh, 0.0) * v * ufl.dx
-
-    # Solve for potential
-    problem = LinearProblem(
-        a, L, bcs=[bc_outer],
-        petsc_options={"ksp_type": "cg", "pc_type": "hypre"}
-    )
-    phi_sol = problem.solve()
-
-    # Create vector function space for velocity
-    V_vec = fem.functionspace(mesh, ("CG", 1, (mesh.geometry.dim,)))
-
-    # Compute velocity as gradient of potential: u = grad(phi)
-    velocity_expr = fem.Expression(ufl.grad(phi_sol), V_vec.element.interpolation_points())
-    velocity = fem.Function(V_vec)
-    velocity.interpolate(velocity_expr)
-    return velocity, phi_sol
-
-
-
-
-
 def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
     V = fem.functionspace(mesh, ("CG", 1))
     phi_h = fem.Function(V)
@@ -80,23 +40,33 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
     # # and we hit the trailing edge, though r_inner=1.05 avoids this.
     epsilon = 1e-12
     
-    # Compute h_sq = |1 - 1/(x + i*epsilon)|^2
-    # where x = xi + i*eta is the complex coordinate
-    # h_sq = |1 - 1/(xi + i*eta + i*epsilon)|^2 = |1 - 1/(xi + i*(eta + epsilon))|^2
-    denominator_real = xi
-    denominator_imag = eta + epsilon
-    denominator_mag_sq = denominator_real**2 + denominator_imag**2
-
-    # 1/(xi + i*(eta + epsilon)) = (xi - i*(eta + epsilon)) / |xi + i*(eta + epsilon)|^2
-    inverse_real = denominator_real / denominator_mag_sq
-    inverse_imag = -denominator_imag / denominator_mag_sq
-
-    # 1 - 1/(xi + i*(eta + epsilon))
-    diff_real = 1.0 - inverse_real
-    diff_imag = -inverse_imag
-
-    # |1 - 1/(xi + i*(eta + epsilon))|^2
-    h_sq = diff_real**2 + diff_imag**2
+    # Compute h_sq = |dz/d_sigma|^2 where z = (sigma - a) + 1/(sigma - a)
+    # and sigma = xi + i*eta, a = a_real + i*a_img
+    # Need to define a_real and a_img (assuming they're parameters)
+    a_real = fem.Constant(mesh, -0.0)  # Adjust these values as needed
+    a_img = fem.Constant(mesh, 0.0)
+    
+    # sigma - a = (xi - a_real) + i*(eta - a_img)
+    sigma_minus_a_real = xi - a_real
+    sigma_minus_a_imag = eta - a_img + epsilon
+    sigma_minus_a_mag_sq = sigma_minus_a_real**2 + sigma_minus_a_imag**2
+    
+    # dz/d_sigma = 1 - 1/(sigma - a)^2
+    # First compute 1/(sigma - a)^2
+    # 1/(sigma - a) = (sigma_minus_a_real - i*sigma_minus_a_imag) / |sigma - a|^2
+    inv_real = sigma_minus_a_real / sigma_minus_a_mag_sq
+    inv_imag = -sigma_minus_a_imag / sigma_minus_a_mag_sq
+    
+    # 1/(sigma - a)^2 = (inv_real + i*inv_imag)^2
+    inv_sq_real = inv_real**2 - inv_imag**2
+    inv_sq_imag = 2.0 * inv_real * inv_imag
+    
+    # dz/d_sigma = 1 - 1/(sigma - a)^2
+    dz_dsigma_real = 1.0 - inv_sq_real
+    dz_dsigma_imag = -inv_sq_imag
+    
+    # |dz/d_sigma|^2
+    h_sq = dz_dsigma_real**2 + dz_dsigma_imag**2
 
     # Compressible density correction: rho = (1 - (gamma-1)/2 * M_inf^2 * h_sq)^(1/(gamma-1))
     rho = (1.0 - (gamma - 1.0) / 2.0 * M_inf**2 * h_sq)**(1.0 / (gamma - 1.0))

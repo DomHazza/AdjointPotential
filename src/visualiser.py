@@ -46,8 +46,11 @@ def __add_nodes(mesh, facet_tags, coords, ax_1):
             )
 
 
-def show_flow(mesh, u_n, p_):
-    fig, ax = plt.subplots(figsize=(8, 8))
+def show_flow(mesh, facet_tags, u_n, phi, rho):
+    fig, ax = plt.subplots(
+        nrows=1, ncols=2,
+        figsize=(12, 6)
+    )
 
     length = 6
     x_min, x_max = -length, length
@@ -57,9 +60,7 @@ def show_flow(mesh, u_n, p_):
     y_grid = np.linspace(y_min, y_max, ny)
     X, Y = np.meshgrid(x_grid, y_grid)
 
-    # Flatten the grid points for evaluation
     points_eval = np.column_stack([X.ravel(), Y.ravel(), np.zeros(X.size)])
-    # Ensure the points array has the correct shape and dtype for DOLFINx
     points_eval = np.ascontiguousarray(points_eval, dtype=np.float64)
 
     # Find cells containing the evaluation points
@@ -84,32 +85,72 @@ def show_flow(mesh, u_n, p_):
                 U.flat[i] = 0
                 V.flat[i] = 0
 
-    # Evaluate pressure at grid points
+    # Evaluate phi at grid points
     P = np.zeros(X.shape)
     for i in range(len(points_eval)):
         cells = colliding_cells.links(i)
         if len(cells) > 0:
             try:
-                pres = p_.eval(points_eval[i], cells[:1])
+                pres = phi.eval(points_eval[i], cells[:1])
                 P.flat[i] = pres[0]
             except:
                 # Point might be outside the domain
                 P.flat[i] = np.nan
+    
+    # Evaluate density at grid points
+    R = np.zeros(X.shape)
+    for i in range(len(points_eval)):
+        cells = colliding_cells.links(i)
+        if len(cells) > 0:
+            try:
+                dens = rho.eval(points_eval[i], cells[:1])
+                R.flat[i] = dens[0]
+            except:
+                # Point might be outside the domain
+                R.flat[i] = np.nan
+
+    # Create density contour plot
+    contour_rho = ax[0].contourf(X, Y, R, levels=20, cmap='viridis', alpha=0.6)
+    plt.colorbar(contour_rho, ax=ax[0], label='Density')
+    ax[0].streamplot(X, Y, U, V, density=2, color='black', linewidth=1, arrowsize=1.5)
+    ax[0].set_xlim(x_min, x_max)
+    ax[0].set_ylim(y_min, y_max)
+    ax[0].set_xlabel('x')
+    ax[0].set_ylabel('y')
+    ax[0].set_title('Density Field')
+    ax[0].set_aspect('equal')
 
     # Create pressure contour plot
-    contour = ax.contourf(X, Y, P, levels=20, cmap='jet', alpha=0.6)
-    plt.colorbar(contour, ax=ax, label='Potential')
+    contour = ax[1].contourf(X, Y, P, levels=20, cmap='viridis', alpha=0.6)
+    plt.colorbar(contour, ax=ax[1], label='Potential')
+    ax[1].streamplot(X, Y, U, V, density=2, color='black', linewidth=1, arrowsize=1.5)
+    ax[1].set_xlim(x_min, x_max)
+    ax[1].set_ylim(y_min, y_max)
+    ax[1].set_xlabel('x')
+    ax[1].set_ylabel('y')
+    ax[1].set_title('Potential Field')
+    ax[1].set_aspect('equal')
 
-    # Create streamlines on top
-    ax.streamplot(X, Y, U, V, density=2, color='black', linewidth=1, arrowsize=1.5)
+    # Plot obstacle boundary
+    topology = mesh.topology
+    topology.create_connectivity(1, 0)
+    facet_to_vertex = topology.connectivity(1, 0)
 
-    # Set plot properties
-    ax.set_xlim(x_min, x_max)
-    ax.set_ylim(y_min, y_max)
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_title('Velocity Field Streamlines with Pressure Field')
-    ax.set_aspect('equal')
+    # Find facets tagged as obstacle (assuming tag value for obstacle)
+    obstacle_facets = []
+    for tag_value in set(facet_tags.values):
+        if tag_value != 0:  # Assuming 0 is not obstacle, adjust as needed
+            obstacle_facets.extend(facet_tags.find(tag_value))
+
+    # Extract coordinates of obstacle boundary
+    coords = mesh.geometry.x
+    for facet in obstacle_facets:
+        vertices = facet_to_vertex.links(facet)
+        if len(vertices) == 2:  # Line segment
+            x_coords = [coords[vertices[0], 0], coords[vertices[1], 0]]
+            y_coords = [coords[vertices[0], 1], coords[vertices[1], 1]]
+            ax[0].plot(x_coords, y_coords, 'w-', linewidth=2)
+            ax[1].plot(x_coords, y_coords, 'w-', linewidth=2)
 
     plt.tight_layout()
     return fig
