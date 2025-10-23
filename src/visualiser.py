@@ -116,7 +116,3 @@ def show_flow(mesh, u_n, p_):
 
 
 
-
-
-
-

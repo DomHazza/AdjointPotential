@@ -76,8 +76,8 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
     r_sq = xi**2 + eta**2
     r_four = r_sq**2
 
-    # Add a small epsilon to h_sq to prevent division by zero if r_inner=1.0
-    # and we hit the trailing edge, though r_inner=1.05 avoids this.
+    # # Add a small epsilon to h_sq to prevent division by zero if r_inner=1.0
+    # # and we hit the trailing edge, though r_inner=1.05 avoids this.
     epsilon = 1e-12
     
     # Compute h_sq = |1 - 1/(x + i*epsilon)|^2
