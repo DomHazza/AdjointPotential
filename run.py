@@ -30,16 +30,18 @@ def conformal_map(x, y):
 
 
 mesh, cell_tags, facet_tags = src.mesher.build_sigma_mesh()
-velocity, phi, rho = src.solver.potential_compressible(mesh, facet_tags, M_inf=0.7, gamma=1.4)
+fig = src.visualiser.show_mesh(mesh, facet_tags)
+velocity, phi, rho = src.solver.potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4)
 
-fig = src.visualiser.show_flow(mesh, facet_tags, velocity, phi, rho)
+# fig = src.visualiser.show_flow(mesh, facet_tags, velocity, phi, rho)
 
 # Build the new mesh
 coords = mesh.geometry.x
 z_real, z_imag = conformal_map(coords[:, 0], coords[:, 1])
 new_coords = np.column_stack([z_real, z_imag])
 mesh.geometry.x[:, :2] = new_coords
+fig = src.visualiser.show_mesh(mesh, facet_tags)
 
 # fig = src.visualiser.show_mesh(mesh, facet_tags)
-fig = src.visualiser.show_flow(mesh, facet_tags, velocity, phi, rho)
+# fig = src.visualiser.show_flow(mesh, facet_tags, velocity, phi, rho)
 plt.show()

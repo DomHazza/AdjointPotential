@@ -10,10 +10,10 @@ MARKERS = {
 }
 
 
-def build_sigma_mesh():
+def build_sigma_mesh(x=0.0, y=0.0, r=1.0):
     gmsh.initialize()
     border = gmsh.model.occ.addDisk(0, 0, 0, 10, 10, tag=1)
-    obstacle = gmsh.model.occ.addDisk(0, 0, 0, 1.0, 1.0, tag=2)
+    obstacle = gmsh.model.occ.addDisk(x, y, 0, r, r, tag=2)
     fluid_nodes = gmsh.model.occ.cut([(2, border)], [(2, obstacle)])
     gmsh.model.occ.synchronize()
     border_nodes, obstacle_nodes = __label_nodes()
@@ -24,7 +24,7 @@ def build_sigma_mesh():
     gmsh.model.mesh.field.setNumber(2, "InField", 1)
     gmsh.model.mesh.field.setNumber(2, "SizeMin", 0.1)
     gmsh.model.mesh.field.setNumber(2, "SizeMax", 1.0)
-    gmsh.model.mesh.field.setNumber(2, "DistMin", 0.5)
+    gmsh.model.mesh.field.setNumber(2, "DistMin", 0.1)
     gmsh.model.mesh.field.setNumber(2, "DistMax", 3.0)
     gmsh.model.mesh.field.setAsBackgroundMesh(2)
 

@@ -29,21 +29,16 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
     linear_problem.solve()
     print("Initial guess computed.")
 
-    # --- 5. Define Nonlinear Variational Problem ---
     v = ufl.TestFunction(V)
     x = ufl.SpatialCoordinate(mesh)
     xi, eta = x[0], x[1]
     r_sq = xi**2 + eta**2
-    r_four = r_sq**2
-
-    # # Add a small epsilon to h_sq to prevent division by zero if r_inner=1.0
-    # # and we hit the trailing edge, though r_inner=1.05 avoids this.
-    epsilon = 1e-12
     
     # Compute h_sq = |dz/d_sigma|^2 where z = (sigma - a) + 1/(sigma - a)
     # and sigma = xi + i*eta, a = a_real + i*a_img
     # Need to define a_real and a_img (assuming they're parameters)
-    a_real = fem.Constant(mesh, -0.0)  # Adjust these values as needed
+    epsilon = 1e-12
+    a_real = fem.Constant(mesh, -0.0)
     a_img = fem.Constant(mesh, 0.0)
     
     # sigma - a = (xi - a_real) + i*(eta - a_img)
@@ -67,13 +62,16 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
     
     # |dz/d_sigma|^2
     h_sq = dz_dsigma_real**2 + dz_dsigma_imag**2
+    q_sq = ufl.dot(ufl.grad(phi_h), ufl.grad(phi_h))
 
     # Compressible density correction: rho = (1 - (gamma-1)/2 * M_inf^2 * h_sq)^(1/(gamma-1))
-    rho = (1.0 - (gamma - 1.0) / 2.0 * M_inf**2 * h_sq)**(1.0 / (gamma - 1.0))
+    rho = (1.0 +0.5*(gamma-1.0) * M_inf**2 * q_sq/(r_sq* h_sq))**(1.0 / (gamma - 1.0))
+    rho=1.
+    
     # Residual F(phi; v)
     F = rho * ufl.dot(ufl.grad(phi_h), ufl.grad(v)) * ufl.dx
 
-    # Jacobian J = dF/d(phi)
+
     J = ufl.derivative(F, phi_h)
 
     # --- 6. Setup and Solve the Nonlinear Problem ---
@@ -95,6 +93,7 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
         (1.0 - (gamma - 1.0) / 2.0 * M_inf**2 * h_sq)**(1.0 / (gamma - 1.0)),
         V.element.interpolation_points()
     )
+    #rho_expr = fem.Expression(1.0, V.element.interpolation_points())
     rho_final = fem.Function(V)
     rho_final.interpolate(rho_expr)
 
