@@ -34,20 +34,11 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
     # Set up the nonlinear problem
     v = ufl.TestFunction(V)
     x = ufl.SpatialCoordinate(mesh)
-    xi, eta = x[0], x[1]
-    R_sq = xi**2 + eta**2
-    R = ufl.sqrt(R_sq)
-    h = ufl.sqrt((1 - (xi**2 - eta**2)/((xi**2 + eta**2)**2))**2 + (2*xi*eta/((xi**2 + eta**2)**2))**2)
-    
-    # Compute polar derivatives
-    phi_x, phi_y = ufl.grad(phi)[0], ufl.grad(phi)[1]
-    phi_r = (xi * phi_x + eta * phi_y) / R
-    phi_theta = (-eta * phi_x + xi * phi_y) / R
 
-    u_vel = phi_theta / (R*h)
-    v_vel = phi_r / (R_sq*h)
+    velocity = ufl.grad(phi)
+    u_vel, v_vel = velocity[0], velocity[1]
+    rho = (1 + 0.5 * (gamma - 1) * M_inf**2 * (1 - (u_vel**2 + v_vel**2)))**(1 / (gamma - 1))
     
-    rho=1.
     # Residual F(phi; v)
     F = rho * ufl.dot(ufl.grad(phi), ufl.grad(v)) * ufl.dx
     J = ufl.derivative(F, phi)
@@ -62,25 +53,14 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
     n, converged = solver.solve(phi)
     print('Nonlinear solver converged')
 
-    # Compute velocity components from potential
-    phi_x, phi_y = ufl.grad(phi)[0], ufl.grad(phi)[1]
-    phi_r = (xi * phi_x + eta * phi_y) / R
-    phi_theta = (-eta * phi_x + xi * phi_y) / R
+    # Project velocity and density to function spaces for plotting
+    V_vec = fem.functionspace(mesh, ("CG", 1, (2,)))  # Vector function space for velocity
+    V_scalar = fem.functionspace(mesh, ("CG", 1))     # Scalar function space for density
 
-    u_vel = phi_theta / (R*h)
-    v_vel = phi_r / (R_sq*h)
+    velocity_func = fem.Function(V_vec)
+    rho_func = fem.Function(V_scalar)
 
-    # Create vector function space for velocity
-    V_vec = fem.functionspace(mesh, ("CG", 1, (2,)))
-    velocity = fem.Function(V_vec)
+    velocity_func.interpolate(fem.Expression(velocity, V_vec.element.interpolation_points()))
+    rho_func.interpolate(fem.Expression(rho, V_scalar.element.interpolation_points()))
 
-    # Project velocity components
-    velocity_expr = fem.Expression(
-        ufl.as_vector([u_vel, v_vel]),
-        V_vec.element.interpolation_points()
-    )
-    velocity.interpolate(velocity_expr)
-
-    # Compute final density (placeholder for actual compressible calculation)
-    rho = (1+0.5*(gamma - 1)*M_inf**2 * (1 - (u_vel**2 + v_vel**2)))**(1/(gamma - 1))
-    return velocity, phi, rho
+    return velocity_func, phi, rho_func
