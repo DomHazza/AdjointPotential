@@ -25,6 +25,9 @@ def show_mesh(mesh, facet_tags):
     return fig
 
 
+def conformal_map_dzdsigma(x, y):
+    sigma = x + 1j * y
+    return 1 - 1 / (sigma)**2
 
 
 def __add_nodes(mesh, facet_tags, coords, ax_1):
@@ -77,9 +80,10 @@ def show_flow(mesh, facet_tags, u_n, phi, rho):
         cells = colliding_cells.links(i)
         if len(cells) > 0:
             try:
+                #TODO
                 vel = u_n.eval(points_eval[i], cells[:1])
-                U.flat[i] = vel[0]
-                V.flat[i] = vel[1]
+                U.flat[i] = transformed_velocity_complex.real
+                V.flat[i] = transformed_velocity_complex.imag
             except:
                 # Point might be outside the domain
                 U.flat[i] = 0
