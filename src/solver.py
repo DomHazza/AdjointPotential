@@ -62,5 +62,31 @@ def potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4):
 
     velocity_func.interpolate(fem.Expression(velocity, V_vec.element.interpolation_points()))
     rho_func.interpolate(fem.Expression(rho, V_scalar.element.interpolation_points()))
-
     return velocity_func, phi, rho_func
+
+
+def adjoint_potential_compressible(mesh, facet_tags, M_inf=0.1, gamma=1.4, phi_target=None):
+    V = fem.functionspace(mesh, ("CG", 1))
+    lambda_phi = fem.Function(V)
+
+    # Set up the linear problem
+    u_adj = ufl.TrialFunction(V)
+    v_adj = ufl.TestFunction(V)
+
+    velocity = ufl.grad(phi_target)
+    u_vel, v_vel = velocity[0], velocity[1]
+    rho = (1 + 0.5 * (gamma - 1) * M_inf**2 * (1 - (u_vel**2 + v_vel**2)))**(1 / (gamma - 1))
+
+    a_adj = rho * ufl.dot(ufl.grad(u_adj), ufl.grad(v_adj)) * ufl.dx
+    L_adj = fem.Constant(mesh, 0.0) * v_adj * ufl.dx
+
+    # Boundary condition
+    boundary = fem.locate_dofs_topological(V, 1, facet_tags.find(src.mesher.MARKERS['border']))
+    bc_outer = fem.dirichletbc(fem.Constant(mesh, 0.0), boundary)
+
+    # Solve for adjoint potential
+    linear_problem = LinearProblem(a_adj, L_adj, bcs=[bc_outer], u=lambda_phi)
+    linear_problem.solve()
+    print("Adjoint potential computed.")
+
+    return lambda_phi
