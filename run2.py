@@ -12,7 +12,7 @@ def conformal_map(x, y):
     return z.real, z.imag
 
 
-mesh, cell_tags, facet_tags = src.mesher.build_sigma_mesh(-0.08, 0.08, 1.08)
+mesh, cell_tags, facet_tags = src.mesher.build_sigma_mesh(-0.08, 0.0, 1.08)
 
 coords = mesh.geometry.x
 z_real, z_imag = conformal_map(coords[:, 0], coords[:, 1])
