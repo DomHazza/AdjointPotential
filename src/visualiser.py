@@ -55,7 +55,7 @@ def show_flow(mesh, facet_tags, u_n, phi, rho):
         figsize=(12, 6)
     )
 
-    length = 3
+    length = 6
     x_min, x_max = -length, length
     y_min, y_max = -length, length
     nx, ny = 200, 200
